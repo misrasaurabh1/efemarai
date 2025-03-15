@@ -173,9 +173,11 @@ def test_robustness(
             new_samples = _execute_search(search_args)
             if new_samples is not None:
                 new_samples.assign(
-                    image=index
-                    if dataset_index_to_id is None
-                    else dataset_index_to_id[index]
+                    image=(
+                        index
+                        if dataset_index_to_id is None
+                        else dataset_index_to_id[index]
+                    )
                 )
                 samples = pd.concat([samples, new_samples], ignore_index=True)
 
@@ -199,9 +201,13 @@ def _extract_class_ids(dataset, class_names, dataset_format):
         transient=True,
     ):
         targets = ef.Datapoint.create_targets_from(dataset_format[1], target)
-        labels = [target.label for target in targets if hasattr(target, "label")]
-        class_ids.update([label.id for label in labels if label.id is not None])
-        class_names.update([label.name for label in labels if label.name is not None])
+        for target in targets:
+            if hasattr(target, "label"):
+                label = target.label
+                if label.id is not None:
+                    class_ids.add(label.id)
+                if label.name is not None:
+                    class_names.add(label.name)
 
     return class_ids or list(range(len(class_names)))
 
