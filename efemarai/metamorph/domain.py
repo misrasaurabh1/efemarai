@@ -1,4 +1,4 @@
-from collections import Counter
+from collections import Counter, defaultdict
 from random import choice, sample
 
 
@@ -175,17 +175,16 @@ class Domain:
         def transform(params, *args):
             results = {}
 
-            # Avoid storing all intermediate results/outputs, so keep a reference
-            # count that is decreased every time the output is read. If the count
-            # reaches 0 then the intermediate result/output is deleted.
-            refs = Counter()
+            # Use a default dictionary to manage reference counts
+            refs = defaultdict(int)
 
             def apply(transformation):
                 inputs = []
                 for _input in transformation.inputs:
                     output_from = _input.output_from
                     if output_from.id not in results:
-                        results[output_from.id] = apply(output_from)
+                        result = apply(output_from)
+                        results[output_from.id] = result
                         for output in output_from.outputs:
                             refs[output_from.id] += len(output.input_to)
 
@@ -212,10 +211,12 @@ class Domain:
         Returns:
             A dict mapping axis names to sampled values.
         """
-        axes_samples = {axis.name: axis.sample(n) for axis in self.axes}
-
         if n is None:
-            return axes_samples
+            # Generate a single sample if n is not provided
+            return {axis.name: axis.sample() for axis in self.axes}
+
+        # Use list comprehension directly for performance
+        axes_samples = {axis.name: axis.sample(n) for axis in self.axes}
 
         return [
             {axis.name: axes_samples[axis.name][i] for axis in self.axes}
@@ -242,7 +243,7 @@ class Domain:
         return transformation(params, *inputs), params
 
     def generate(self, params=None):
-        """Generate a set new targets.
+        """Generate a set of new targets.
 
         Often the search space will include an axis for choosing initial targets
         that are to be transformed. In that case the synthesized targets can
