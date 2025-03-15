@@ -8,21 +8,22 @@ DEFAULT_SEGM_CONFIDENCE = 1.0
 
 
 def preprocess_polygon(targets, outputs):
-    gt_object, gt_class, pred_object, pred_class, pred_confidence = [], [], [], [], []
-
-    for target in targets:
-        target_obj = target._raw_data
-        target_cls = (
+    gt_object = [target._raw_data for target in targets]
+    gt_class = [
+        (
             target.label.id
             if hasattr(target, "label") and hasattr(target.label, "id")
             else None
         )
-        gt_object.append(target_obj)
-        gt_class.append(target_cls)
+        for target in targets
+    ]
 
+    pred_object = []
+    pred_class = []
+    pred_confidence = []
     for output in outputs:
-        output_obj = output._raw_data
-        output_cls = (
+        pred_object.append(output._raw_data)
+        pred_class.append(
             output.label.id
             if hasattr(output, "label") and hasattr(output.label, "id")
             else None
@@ -32,8 +33,6 @@ def preprocess_polygon(targets, outputs):
             if not hasattr(output, "label") or not hasattr(output.label, "confidence")
             else output.label.confidence
         )
-        pred_object.append(output_obj)
-        pred_class.append(output_cls)
         pred_confidence.append(
             output_conf if output_conf is not None else DEFAULT_SEGM_CONFIDENCE
         )
