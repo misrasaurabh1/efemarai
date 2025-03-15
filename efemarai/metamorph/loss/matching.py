@@ -30,17 +30,17 @@ def greedy_entity_matching(IoUs):
     best_gt = {}
     best_iou = {}
 
-    while IoUs.size > 0 and IoUs.max() > 0:
-        indices = np.where(IoUs == IoUs.max())
-
-        gt_index = indices[0][0]
-        pred_index = indices[1][0]
+    while np.any(IoUs > 0):
+        # Get the index of the maximum IoU value
+        flat_index = np.argmax(IoUs)
+        gt_index, pred_index = np.unravel_index(flat_index, IoUs.shape)
 
         best_gt[pred_index] = gt_index
         best_pred[gt_index] = pred_index
-
         best_iou[(gt_index, pred_index)] = IoUs[gt_index, pred_index].item()
-        IoUs[gt_index] = 0
+
+        # Invalidate the matched ground truth and prediction to prevent being used again
+        IoUs[gt_index, :] = 0
         IoUs[:, pred_index] = 0
 
     return best_gt, best_pred, best_iou
