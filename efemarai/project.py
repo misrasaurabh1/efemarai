@@ -38,8 +38,10 @@ class Project:
                 f"Project name '{name}' is not specified or problem type '{problem_type}' not recognized."
             )
 
-        existing_project = next((p for p in session.projects if p.name == name), None)
-        if existing_project is not None:
+        project_dict = {p.name: p for p in session.projects}
+        existing_project = project_dict.get(name)
+
+        if existing_project:
             if exists_ok:
                 return existing_project
             raise ValueError(f"Project {name} already exists and exists_ok=False.")
