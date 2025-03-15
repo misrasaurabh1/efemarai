@@ -1136,7 +1136,13 @@ def _print_table(tests):
 
 
 def _check_for_multiple_entities(entities, name):
-    return len([x for x in entities if x.name == name]) > 1
+    count = 0
+    for x in entities:
+        if x.name == name:
+            count += 1
+            if count > 1:
+                return True
+    return False
 
 
 def _get_project(definition=None, efemarai_file=None, must_exist=True):
