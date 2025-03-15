@@ -70,10 +70,11 @@ def group_fields_by_type(fields):
     fields_grouped_by_type = defaultdict(lambda: defaultdict(list))
 
     for field in fields:
-        field.ref_field.sort()
         # Loss is not calculated if "require_loss" is added as False in the user_attributes.
         if field._requires_loss:
-            fields_grouped_by_type[field._cls][str(field.ref_field)].append(field)
+            sorted_ref_field = tuple(sorted(field.ref_field))
+            fields_grouped_by_type[field._cls][sorted_ref_field].append(field)
+
     return fields_grouped_by_type
 
 
