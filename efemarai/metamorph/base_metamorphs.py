@@ -175,15 +175,12 @@ def input(name=None, type=None):
 
 
 def output(name=None, type=None):
-    if type is None:
-        type = IOType.Datapoint
-
     def decorator(func):
-        if func.__name__ not in METAMORPHS:
-            METAMORPHS[func.__name__] = Operator(func)
+        if (metamorph := METAMORPHS.get(func.__name__)) is None:
+            metamorph = Operator(func)
+            METAMORPHS[func.__name__] = metamorph
 
-        METAMORPHS[func.__name__].add_output(name, type)
-
+        metamorph.add_output(name, type)
         return func
 
     return decorator
