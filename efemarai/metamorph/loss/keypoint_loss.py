@@ -96,34 +96,32 @@ def preprocess_skeleton(targets, outputs):
         pred_confidence (np.array): Predictions confidence scores with shape [N].
 
     """
-    gt_object, pred_object, pred_confidence = [], [], []
-    target_ids = {target.instance_id for target in targets}
-    for skeleton in targets:
-        gt_object.append(
-            [
-                (keypoint_field.x, keypoint_field.y, float(keypoint_field.occluded))
-                for keypoint_field in skeleton.keypoints
-                if keypoint_field.instance_id == skeleton.instance_id
-            ]
-        )
+    # Extract target and output IDs and skeletons in a single pass
+    gt_object = [
+        [
+            (keypoint_field.x, keypoint_field.y, float(keypoint_field.occluded))
+            for keypoint_field in skeleton.keypoints
+        ]
+        for skeleton in targets
+    ]
+    pred_object = [
+        [
+            (keypoint_field.x, keypoint_field.y, float(keypoint_field.occluded))
+            for keypoint_field in skeleton.keypoints
+        ]
+        for skeleton in outputs
+    ]
 
-    output_ids = {output.instance_id for output in outputs}
-    for skeleton in outputs:
-        pred_object.append(
-            [
-                (keypoint_field.x, keypoint_field.y, float(keypoint_field.occluded))
-                for keypoint_field in skeleton.keypoints
-                if keypoint_field.instance_id == skeleton.instance_id
-            ]
-        )
-        # TODO: Think of how to aggregate the keypoint score per group
-        pred_confidence.append(DEFAULT_SKELETON_CONFIDENCE)
+    target_ids = [skeleton.instance_id for skeleton in targets]
+    output_ids = [skeleton.instance_id for skeleton in outputs]
+
+    pred_confidence = [DEFAULT_SKELETON_CONFIDENCE] * len(outputs)
 
     return (
         np.array(gt_object),
-        np.array(list(target_ids)),
+        np.array(target_ids),
         np.array(pred_object),
-        np.array(list(output_ids)),
+        np.array(output_ids),
         np.array(pred_confidence),
     )
 
