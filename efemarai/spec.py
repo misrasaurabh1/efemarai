@@ -1,4 +1,5 @@
 import re
+from functools import lru_cache
 
 
 class DictLiteral(dict):
@@ -49,20 +50,21 @@ def eval(term, x, env):
         return eval_str(term, x, env)
 
     # Handle literal data structs specified by the user
-    if type(term) is DictLiteral:
+    term_type = type(term)
+    if term_type is DictLiteral:
         return {eval(name, x, env): eval(value, x, env) for name, value in term.items()}
 
-    if type(term) is ListLiteral:
-        return list(eval(item, x, env) for item in term)
+    if term_type is ListLiteral:
+        return [eval(item, x, env) for item in term]
 
-    if type(term) is TupleLiteral:
+    if term_type is TupleLiteral:
         return tuple(eval(item, x, env) for item in term)
 
     if isinstance(term, tuple):
         # if first element is callable then call a function (a la LISP),
         # otherwise perform eval on each element
         if not callable(term[0]):
-            return tuple(eval(term, x, env) for term, x in zip(term, x))
+            return tuple(eval(t, v, env) for t, v in zip(term, x))
 
         return eval_call(term, x, env)
 
@@ -72,7 +74,7 @@ def eval(term, x, env):
 
     # Data transformation
     if isinstance(term, dict):
-        key, value = next(iter(term.items()), (None, None))
+        key, value = next(iter(term.items()))
 
         if isinstance(key, int):
             key = f"[{key}]"
@@ -89,16 +91,14 @@ def eval(term, x, env):
 
 def eval_str(term: str, x: any, env: dict):
     # Escaped strings (i.e. 'str or 'str') are literals so return them
-    if term.startswith("'") and term.endswith("'"):
-        return term[1:-1]
-
     if term.startswith("'"):
-        return term[1:]
+        if term.endswith("'"):
+            return term[1:-1]
+        else:
+            return term[1:]
 
-    # Find multiple accessors in a single string, e.g.
-    # '.instances[0].label.id' -> ['.instances', '[0]', '.label', '.id']
-    # '[0]bbox[1]' -> ['[0]', 'bbox', '[1]']
-    accessors = re.findall(r"\[[0-9]+\]|\.?[^\W0-9]\w+", term)
+    # Handle multiple accessors
+    accessors = extract_accessors(term)
 
     # Handle nested accessors
     if len(accessors) > 1:
@@ -118,7 +118,7 @@ def eval_str(term: str, x: any, env: dict):
         term = term[1:-1]
 
     # Integer index access
-    if re.match(r"[-+]?\d+$", term) is not None:
+    if term.isdigit() or (term.startswith("-") and term[1:].isdigit()):
         term = int(term)
 
     return x[term]
@@ -126,12 +126,19 @@ def eval_str(term: str, x: any, env: dict):
 
 def eval_call(term: tuple, x: any, env: dict):
     fn, *rest = term
-    args, kwargs = [], {}
+    args = []
+    kwargs = {}
 
     for arg in rest:
-        if type(arg) is DictLiteral:
+        if isinstance(arg, DictLiteral):
             kwargs.update(eval(arg, x, env))
         else:
             args.append(eval(arg, x, env))
 
     return fn(*args, **kwargs)
+
+
+@lru_cache(None)
+def extract_accessors(term):
+    # Find multiple accessors in a single string.
+    return re.findall(r"\[[0-9]+\]|\.?[^\W0-9]\w+", term)
