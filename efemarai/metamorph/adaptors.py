@@ -468,15 +468,20 @@ def prepare_polygon_fields(image, targets):
 
 
 def prepare_keypoint_fields(image, targets):
-    if "keypoints" not in targets:
+    keypoints = targets.get("keypoints")
+    if not keypoints:
         return []
 
     keypoint_fields = targets["keypoint_fields"]
-    keypoints = A.core.keypoints_utils.convert_keypoints_from_albumentations(
-        keypoints=targets["keypoints"][: len(keypoint_fields)],
+    image_height = image.height
+    image_width = image.width
+
+    # Convert only the necessary keypoints
+    converted_keypoints = A.core.keypoints_utils.convert_keypoints_from_albumentations(
+        keypoints=keypoints[: len(keypoint_fields)],
         target_format="xy",
-        rows=image.height,
-        cols=image.width,
+        rows=image_height,
+        cols=image_width,
     )
 
     return [
@@ -491,7 +496,7 @@ def prepare_keypoint_fields(image, targets):
             annotated=field.annotated,
             occluded=field.occluded,
         )
-        for (x, y), field in zip(keypoints, keypoint_fields)
+        for (x, y), field in zip(converted_keypoints, keypoint_fields)
     ]
 
 
