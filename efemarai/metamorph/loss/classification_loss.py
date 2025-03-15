@@ -2,21 +2,19 @@ import numpy as np
 
 
 def preprocess_tags(targets, outputs):
-    gt_class, pred_confidence = [], []
-
-    for target in targets:
-        target_cls = (
+    gt_class = [
+        (
             target.label.id
             if hasattr(target, "label") and hasattr(target.label, "id")
             else None
         )
-        gt_class.append(target_cls)
+        for target in targets
+    ]
 
-    for output in outputs:
-        if output.probabilities is not None:
-            probabilities = output.probabilities
-
-        pred_confidence.append(probabilities)
+    pred_confidence = [
+        output.probabilities if output.probabilities is not None else None
+        for output in outputs
+    ]
 
     return (
         np.array(gt_class),
@@ -42,9 +40,11 @@ def one_hot_encode(ids, num_classes=None):
 def classification_loss(gt_classes, pred_confidence, class_weights):
 
     loss = {
-        "softmax_info": pred_confidence
-        if not hasattr(pred_confidence, "tolist")
-        else pred_confidence.tolist(),
+        "softmax_info": (
+            pred_confidence
+            if not hasattr(pred_confidence, "tolist")
+            else pred_confidence.tolist()
+        ),
         "failure_score_normalization_constant": 1,
     }
     one_hot = one_hot_encode(gt_classes, num_classes=len(class_weights))
@@ -63,9 +63,11 @@ def classification_loss(gt_classes, pred_confidence, class_weights):
 def cross_entropy_loss(gt_classes, pred_confidence, class_weights):
 
     loss = {
-        "softmax_info": pred_confidence
-        if not hasattr(pred_confidence, "tolist")
-        else pred_confidence.tolist(),
+        "softmax_info": (
+            pred_confidence
+            if not hasattr(pred_confidence, "tolist")
+            else pred_confidence.tolist()
+        ),
         "failure_score_normalization_constant": 1,
     }
     one_hot = one_hot_encode(gt_classes, num_classes=len(class_weights))
