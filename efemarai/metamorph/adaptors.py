@@ -333,44 +333,55 @@ def remove_instances(targets):
 
     removed_instance_ids = set()
 
-    # Remove instances with bounding boxes outside of the image
+    # Vectorized operation for bounding boxes
     if "box_fields" in targets:
-        for bbox, field in zip(targets["bboxes"], targets["box_fields"]):
-            x1, y1, x2, y2 = bbox
-            if x2 < 0 or width < x1 or y2 < 0 or height < y1:
-                removed_instance_ids.add(field.instance_id)
+        bboxes = np.array(targets["bboxes"])
+        box_fields = np.array(targets["box_fields"])
+        valid_boxes = (
+            (bboxes[:, 2] >= 0)
+            & (bboxes[:, 0] < width)
+            & (bboxes[:, 3] >= 0)
+            & (bboxes[:, 1] < height)
+        )
+        removed_instance_ids.update(
+            field.instance_id for field in box_fields[~valid_boxes]
+        )
 
-    # Remove instances with empty masks
+    # Vectorized operation for masks
     if "polygon_fields" in targets:
-        for mask, field in zip(targets["masks"], targets["polygon_fields"]):
-            if np.count_nonzero(mask) == 0:
-                removed_instance_ids.add(field.instance_id)
+        masks = np.array(targets["masks"])
+        polygon_fields = np.array(targets["polygon_fields"])
+        empty_masks = np.count_nonzero(masks, axis=(1, 2)) == 0
+        removed_instance_ids.update(
+            field.instance_id for field in polygon_fields[empty_masks]
+        )
 
-    # Remove instances with all keypoints outside of the image
+    # Process keypoints and skeletons
     if "keypoint_fields" in targets:
+        keypoints = np.array(targets["keypoints"])
+        keypoint_fields = np.array(targets["keypoint_fields"])
+
+        annotated_keypoints = keypoint_fields["annotated"]
         inside_instance_ids = set()
         outside_instance_ids = set()
-        for keypoint, field in zip(targets["keypoints"], targets["keypoint_fields"]):
-            x, y, *_ = keypoint
-            if not field.annotated:
-                continue
 
+        for keypoint, field in zip(
+            keypoints[annotated_keypoints], keypoint_fields[annotated_keypoints]
+        ):
+            x, y, *_ = keypoint
             if x < 0 or width < x or y < 0 or height < y:
                 outside_instance_ids.add(field.instance_id)
             else:
                 inside_instance_ids.add(field.instance_id)
 
-        for instance_id in outside_instance_ids:
-            if instance_id not in inside_instance_ids:
-                removed_instance_ids.add(instance_id)
+        removed_instance_ids.update(outside_instance_ids - inside_instance_ids)
 
-    # Remove instances with skeletons completely outside of the image
+    # Process skeletons
     if "skeleton_fields" in targets:
         start_index = len(targets["keypoint_fields"])
         for skeleton in targets["skeleton_fields"]:
             end_index = start_index + len(skeleton.keypoints)
 
-            # Get all annotated keypoints
             keypoints = np.array(
                 [
                     keypoint
@@ -381,14 +392,13 @@ def remove_instances(targets):
                 ]
             )
 
-            # Do not remove an instance based on keypoints if none of them are annotated
             if len(keypoints) == 0:
                 continue
 
-            x1, y1, *_ = keypoints.min(axis=0)
-            x2, y2, *_ = keypoints.max(axis=0)
+            x_min, y_min, *_ = keypoints.min(axis=0)
+            x_max, y_max, *_ = keypoints.max(axis=0)
 
-            if x2 < 0 or width < x1 or y2 < 0 or height < y1:
+            if x_max < 0 or x_min >= width or y_max < 0 or y_min >= height:
                 removed_instance_ids.add(skeleton.instance_id)
 
             start_index = end_index
