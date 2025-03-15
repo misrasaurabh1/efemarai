@@ -410,13 +410,11 @@ class Model:
         Checks if the new model files are different from the old ones.
         Points the url to the old ones if they are the same.
         """
+        existing_files_dict = {f.hash_code: f.url for f in existing_model.files}
+
         for f in new_model_files:
-            if f.hash_code in [f.hash_code for f in existing_model.files]:
-                f.url = [
-                    file.url
-                    for file in existing_model.files
-                    if file.hash_code == f.hash_code
-                ][0]
+            if f.hash_code in existing_files_dict:
+                f.url = existing_files_dict[f.hash_code]
                 f.upload = False
 
         return new_model_files
