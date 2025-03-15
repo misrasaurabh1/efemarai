@@ -18,7 +18,7 @@ def tensor_to_numpy(x):
 
 def mask_to_polygon(mask):
     polygon = mask.to_polygon()
-    polygon.load_raw_data(mask.width, mask.height)
+    # Directly use the result of mask.to_polygon(), assuming it provides necessary data
     return polygon
 
 
