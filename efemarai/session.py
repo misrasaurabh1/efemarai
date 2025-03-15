@@ -392,21 +392,35 @@ class Session:
             console.print(f":heavy_check_mark: Uploaded '{from_url}'", style="green")
 
     def _get_access(self, endpoint, project_id):
-        access = self._access_requests.get(endpoint)
-
-        if access is None or access["Expiration"] <= datetime.now():
+        # Use 'access' variable directly instead of unnecessary caching to 'self._access_requests' first
+        if (
+            endpoint in self._access_requests
+            and self._access_requests[endpoint]["Expiration"] > datetime.now()
+        ):
+            access = self._access_requests[endpoint]
+        else:
             access = self._get(endpoint, project_id=project_id)
             access["Expiration"] = datetime.strptime(
                 access["Expiration"], "%Y-%m-%dT%H:%M:%SZ"
             )
             self._access_requests[endpoint] = access
 
-        s3 = boto3.client(
-            "s3",
-            aws_access_key_id=access["AccessKeyId"],
-            aws_secret_access_key=access["SecretAccessKey"],
-            aws_session_token=access["SessionToken"],
-            endpoint_url=access["Url"],
-        )
+        # Reuse the initialized boto3 client if credentials have not changed and it is valid.
+        if (
+            not hasattr(self, "_boto_session")
+            or self._boto_session["Expiration"] <= datetime.now()
+            or self._boto_session["AccessKeyId"] != access["AccessKeyId"]
+        ):
+            self._boto_session = {
+                "session": boto3.client(
+                    "s3",
+                    aws_access_key_id=access["AccessKeyId"],
+                    aws_secret_access_key=access["SecretAccessKey"],
+                    aws_session_token=access["SessionToken"],
+                    endpoint_url=access["Url"],
+                ),
+                "Expiration": access["Expiration"],
+                "AccessKeyId": access["AccessKeyId"],
+            }
 
-        return s3, access["Bucket"], access["Prefix"]
+        return self._boto_session["session"], access["Bucket"], access["Prefix"]
