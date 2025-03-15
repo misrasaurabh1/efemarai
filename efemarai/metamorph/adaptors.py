@@ -213,10 +213,25 @@ def transform_field(
 
 
 def prepare_targets(image, annotations):
-    """Convert an image and its annotations to an albumentation targets."""
+    """Convert an image and its annotations to albumentation targets."""
     height, width = image.data.shape[:2]
 
-    box_fields = [field for field in annotations if type(field) is BoundingBox]
+    box_fields = []
+    polygon_fields = []
+    keypoint_fields = []
+    skeleton_fields = []
+
+    # Categorize annotations by type in a single iteration
+    for field in annotations:
+        if type(field) is BoundingBox:
+            box_fields.append(field)
+        elif type(field) is Polygon:
+            polygon_fields.append(field)
+        elif type(field) is Keypoint:
+            keypoint_fields.append(field)
+        elif type(field) is Skeleton:
+            skeleton_fields.append(field)
+
     boxes = [
         A.core.bbox_utils.convert_bbox_to_albumentations(
             bbox=box.xyxy,
@@ -227,11 +242,7 @@ def prepare_targets(image, annotations):
         for box in box_fields
     ]
 
-    polygon_fields = [field for field in annotations if type(field) is Polygon]
-    masks = [polygon.get_mask(image.width, image.height) for polygon in polygon_fields]
-
-    keypoint_fields = [field for field in annotations if type(field) is Keypoint]
-    skeleton_fields = [field for field in annotations if type(field) is Skeleton]
+    masks = [polygon.get_mask(width, height) for polygon in polygon_fields]
 
     keypoints = [
         A.core.keypoints_utils.convert_keypoint_to_albumentations(
