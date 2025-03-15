@@ -65,10 +65,11 @@ class Datapoint:
 
     @staticmethod
     def create_targets_from(spec, data):
-        targets = convert(spec, data)
-        if not isinstance(targets, list):
-            targets = [targets]
-        return targets
+        return (
+            convert(spec, data)
+            if isinstance(convert(spec, data), list)
+            else [convert(spec, data)]
+        )
 
     """
     Used to represent the information about a single piece of data, which is
