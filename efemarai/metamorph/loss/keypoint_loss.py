@@ -16,63 +16,46 @@ def preprocess_keypoints(targets, outputs):
     Extract the needed data from ef.Field objects.
     Args:
         targets (dict): Ground truth serialized ef.BaseFields
-
         outputs (dict): Predicted serialized ef.BaseFields
     Return:
         gt_instances (np.array): Ground truth instances.
-
         gt_classes (np.array): Labels of the ground truth instances with shape [K].
-
         pred_instances (np.array): Prediction instances.
-
         pred_classes (np.array): Labels of the prediction instances with shape [N].
-
         pred_confidence (np.array): Predictions confidence scores with shape [N].
-
     """
-    gt_object, pred_object, pred_confidence = [], [], []
-    target_ids = {target.instance_id for target in targets}
-    for skeleton_id in target_ids:
-        gt_object.append(
-            [
-                (target.x, target.y, float(target.occluded))
-                for target in targets
-                if target.instance_id == skeleton_id
-            ]
+
+    # Create dictionaries for targets and outputs to avoid multiple iterations
+    targets_by_instance = {
+        skeleton_id: [] for skeleton_id in {target.instance_id for target in targets}
+    }
+    outputs_by_instance = {
+        skeleton_id: [] for skeleton_id in {output.instance_id for output in outputs}
+    }
+
+    for target in targets:
+        targets_by_instance[target.instance_id].append(
+            (target.x, target.y, float(target.occluded))
         )
 
-    output_ids = {output.instance_id for output in outputs}
-    for skeleton_id in output_ids:
-        pred_object.append(
-            [
-                (output.x, output.y, float(output.occluded))
-                for output in outputs
-                if output.instance_id == skeleton_id
-            ]
+    for output in outputs:
+        outputs_by_instance[output.instance_id].append(
+            (output.x, output.y, float(output.occluded))
         )
-        # TODO: Think of how to aggregate the keypoint score per group
-        pred_confidence.append(
-            # np.array(
-            #     [
-            #         (
-            #             output.confidence
-            #             if not hasattr(output, "label")
-            #             or not hasattr(output.label, "confidence")
-            #             else output.label.confidence
-            #         )
-            #         for output in outputs
-            #         if output.instance_id == skeleton_id
-            #     ]
-            # ).mean()
-            # np.random.rand()
-            DEFAULT_KEYPOINT_CONFIDENCE
-        )
+
+    gt_object = [
+        targets_by_instance[skeleton_id] for skeleton_id in targets_by_instance
+    ]
+    pred_object = [
+        outputs_by_instance[skeleton_id] for skeleton_id in outputs_by_instance
+    ]
+    pred_confidence = [DEFAULT_KEYPOINT_CONFIDENCE for _ in outputs_by_instance]
 
     return (
         np.array(gt_object),
-        np.array(list(target_ids)),
+        np.array(list(targets_by_instance.keys())),
         np.array(pred_object),
-        np.array(list(output_ids)),
+        np.array(list(outputs_by_instance.keys())),
         np.array(pred_confidence),
     )
 
