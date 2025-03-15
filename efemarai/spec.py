@@ -27,7 +27,10 @@ def convert(spec, xs):
 # Some syntactic sugar (rewriting macros)
 def call(*args, **kwargs):
     """Escapes names of kwargs with a '."""
-    return *args, *(DictLiteral({"'" + name: value}) for name, value in kwargs.items())
+    escaped_kwargs = [
+        DictLiteral({"'" + name: value}) for name, value in kwargs.items()
+    ]
+    return args + tuple(escaped_kwargs)
 
 
 def create(*args, **kwargs):
