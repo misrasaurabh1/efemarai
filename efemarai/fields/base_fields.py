@@ -40,14 +40,13 @@ def _serialize_function(x):
 def create_polygons_from_mask(mask_img, threshold_value=127):
     # Get contours as polygons and the area of the polygons
     _, thresh = cv2.threshold(mask_img, threshold_value, 255, 0)
-    (contours, _,) = cv2.findContours(  # Format: [[[[x1, y1]], [[x2, y2]]...], ...]
-        thresh, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE
-    )
+    contours, _ = cv2.findContours(thresh, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+
     if not contours:
         return ([], 0)
 
     polygons_area = 0
-    polygons = []  # Format: [[x1, y1, x2, y2...], []]
+    polygons = []
 
     for contour in contours:
         # Skip single points and lines
@@ -56,12 +55,13 @@ def create_polygons_from_mask(mask_img, threshold_value=127):
 
         polygons_area += cv2.contourArea(contour)
 
-        # Get rid of unnecessary levels of nesting
-        points = list(itertools.chain(*contour))  # Format: [[x1, y1], [x2, y2]...]
+        # Remove unnecessary levels of nesting and convert to float
+        contour = np.squeeze(contour).astype(float)
 
-        polygons.append([[float(coord) for coord in point] for point in points])
+        # Add the points as [x1, y1, x2, y2...]
+        polygons.append(contour.tolist())
 
-    return (polygons, polygons_area)
+    return polygons, polygons_area
 
 
 class BaseField:
