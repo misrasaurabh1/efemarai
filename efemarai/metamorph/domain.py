@@ -1,4 +1,5 @@
 from collections import Counter
+from functools import lru_cache
 from random import choice, sample
 
 
@@ -180,27 +181,27 @@ class Domain:
             # reaches 0 then the intermediate result/output is deleted.
             refs = Counter()
 
-            def apply(transformation):
+            @lru_cache(None)
+            def cached_apply(transformation_id):
+                transformation = self.transformations[transformation_id]
                 inputs = []
                 for _input in transformation.inputs:
                     output_from = _input.output_from
-                    if output_from.id not in results:
-                        results[output_from.id] = apply(output_from)
-                        for output in output_from.outputs:
-                            refs[output_from.id] += len(output.input_to)
-
-                    inputs.append(results[output_from.id][_input.output_from_index])
+                    input_result = cached_apply(output_from.id)
+                    inputs.append(input_result[_input.output_from_index])
+                    refs[output_from.id] += len(output_from.outputs)
                     refs[output_from.id] -= 1
 
                     if refs[output_from.id] == 0:
-                        del results[output_from.id]
                         del refs[output_from.id]
 
-                # At the beginning of the computation DAG
                 if not inputs:
                     inputs = args
 
                 return transformation(params, *inputs)
+
+            def apply(transformation):
+                return cached_apply(transformation.id)
 
             return apply(sink)[0]
 
