@@ -8,35 +8,37 @@ DEFAULT_BBOX_CONFIDENCE = 1.0
 
 
 def preprocess_bbox(targets, outputs):
-    gt_object, gt_class, pred_object, pred_class, pred_confidence = [], [], [], [], []
-
-    for target in targets:
-        target_obj = target.xyxy
-        target_cls = (
+    gt_object = [target.xyxy for target in targets]
+    gt_class = [
+        (
             target.label.id
             if hasattr(target, "label") and hasattr(target.label, "id")
             else None
         )
-        gt_object.append(target_obj)
-        gt_class.append(target_cls)
+        for target in targets
+    ]
 
-    for output in outputs:
-        output_obj = output.xyxy
-        output_cls = (
+    pred_object = [output.xyxy for output in outputs]
+    pred_class = [
+        (
             output.label.id
             if hasattr(output, "label") and hasattr(output.label, "id")
             else None
         )
-        output_conf = (
+        for output in outputs
+    ]
+    pred_confidence = [
+        (
             output.confidence
             if not hasattr(output, "label") or not hasattr(output.label, "confidence")
-            else output.label.confidence
+            else (
+                output.label.confidence
+                if output.label.confidence is not None
+                else DEFAULT_BBOX_CONFIDENCE
+            )
         )
-        pred_object.append(output_obj)
-        pred_class.append(output_cls)
-        pred_confidence.append(
-            output_conf if output_conf is not None else DEFAULT_BBOX_CONFIDENCE
-        )
+        for output in outputs
+    ]
 
     return (
         np.array(gt_object),
